@@ -2,7 +2,7 @@
 
 ## Folder Structure
 
-project/
+```project/
 │
 ├── app/
 │ ├── **init**.py
@@ -39,7 +39,7 @@ project/
 │
 ├── requirements.txt
 ├── Dockerfile
-└── docker-compose.yml
+└── docker-compose.yml```
 
 ## Structure Breakdown
 
