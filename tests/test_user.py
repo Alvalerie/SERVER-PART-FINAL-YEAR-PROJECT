@@ -20,9 +20,7 @@ def override_get_db():
 app.dependency_overrides[get_db] = override_get_db
 
 
-# ---------------------------------------------------------------------------
 # GET /api/v1/users
-# ---------------------------------------------------------------------------
 
 @patch("app.repositories.user.UserRepository.get_all", return_value=[MOCK_USER])
 def test_get_users(mock_get_all):
@@ -32,9 +30,7 @@ def test_get_users(mock_get_all):
     assert response.json()[0]["email"] == "john@example.com"
 
 
-# ---------------------------------------------------------------------------
 # GET /api/v1/users/{id}
-# ---------------------------------------------------------------------------
 
 @patch("app.repositories.user.UserRepository.get_by_id", return_value=MOCK_USER)
 def test_get_user_found(mock_get_by_id):
@@ -49,9 +45,7 @@ def test_get_user_not_found(mock_get_by_id):
     assert response.status_code == 404
 
 
-# ---------------------------------------------------------------------------
 # POST /api/v1/users
-# ---------------------------------------------------------------------------
 
 VALID_PAYLOAD = {
     "name": "Jane Doe",
@@ -74,9 +68,8 @@ def test_create_user_duplicate_email(mock_get_by_email):
     assert response.status_code == 409
 
 
-# ---------------------------------------------------------------------------
+
 # DELETE /api/v1/users/{id}
-# ---------------------------------------------------------------------------
 
 @patch("app.repositories.user.UserRepository.get_by_id", return_value=MOCK_USER)
 @patch("app.repositories.user.UserRepository.delete", return_value=None)

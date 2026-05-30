@@ -3,6 +3,9 @@ from fastapi import FastAPI
 from .config.settings import settings
 from .routers.user import router as user_router
 from .routers.student import router as student_router
+from .routers.course import router as course_router
+
+
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -14,6 +17,7 @@ app = FastAPI(
 # Routers
 app.include_router(user_router)
 app.include_router(student_router)
+app.include_router(course_router)
 
 @app.get("/", tags=["Health"])
 def health_check():

@@ -42,7 +42,7 @@ class StudentService:
         # Guard against stealing another students computer number
         if payload.student_no:
             existing = self.repo.get_by_id(payload.student_no)
-            if existing and existing.id != student_id:
+            if existing and existing.student_no != student_id:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
                     detail="Student Number already exists in the database",

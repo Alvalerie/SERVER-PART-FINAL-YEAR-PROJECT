@@ -24,7 +24,7 @@ class StudentRepository:
 
         student = Student(
             name=payload.name,
-            id=str(payload.student_no),
+            student_no=str(payload.student_no),
         )
         self.db.add(student)
         self.db.commit()
