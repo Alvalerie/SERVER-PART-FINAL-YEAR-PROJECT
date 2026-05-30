@@ -61,14 +61,14 @@ project/
 ## To run the program
 
 1. In windows terminal
-   ....* `python -m venv venv`
-   ....* `venv\Sripts\activate`
-   ....* `pip install -r requirements.txt`
-   ....* `uvicorn app.main:app --reload`
+   .... * `python -m venv venv`
+   .... * `venv\Sripts\activate`
+   .... * `pip install -r requirements.txt`
+   .... * `uvicorn app.main:app --reload`
 
 2. or with Docker
-   ....* `docker compose up --build`
+   .... * `docker compose up --build`
 
 # to run the tests
 
-....* `pytest tests/`
+.... * `pytest tests/`
