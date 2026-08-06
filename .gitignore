@@ -1,2 +1,23 @@
+# virtual environments
+venv/
+venv311/
+.venv/
+env/
+
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# environment / secrets
 .env
-venv
+*.env
+
+# paddle model cache
+.paddlex/
+
+# editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
