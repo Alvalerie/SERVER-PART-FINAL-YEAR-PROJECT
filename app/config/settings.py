@@ -1,4 +1,7 @@
+from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+BASE_DIR = Path(__file__).resolve().parent.parent.parent 
 
 
 class Settings(BaseSettings):
@@ -16,5 +19,11 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "gtdzswervchuolkmnbvccfxxjhrewqaxessaazz"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
+     # Image storage
+    IMAGES_DIR: Path = BASE_DIR / "images"
+
 
 settings = Settings()
+
+# Ensure the images folder always exists at startup
+settings.IMAGES_DIR.mkdir(parents=True, exist_ok=True)
