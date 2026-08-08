@@ -19,6 +19,11 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "gtdzswervchuolkmnbvccfxxjhrewqaxessaazz"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
+    # Refresh token — separate secret so a leaked access secret
+    # cannot be used to forge refresh tokens and vice versa
+    REFRESH_SECRET_KEY: str = "change-refresh-secret-in-production"
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+
      # Image storage
     IMAGES_DIR: Path = BASE_DIR / "images"
 

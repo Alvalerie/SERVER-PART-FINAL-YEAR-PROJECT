@@ -58,10 +58,13 @@ project/
 - requirements.txt: Project dependencies.
 - Dockerfile and docker-compose.yml: Docker configuration.
 
+## Prerequisites
+- install and setup PGvector 
+
 ## To run the program
 
 1. In windows terminal
-   * `python -m venv venv`
+   * `python -m venv venv` 
    * `venv\Sripts\activate`
    * `pip install -r requirements.txt`
    * `uvicorn app.main:app --reload`

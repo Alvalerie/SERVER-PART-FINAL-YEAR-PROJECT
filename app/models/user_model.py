@@ -16,7 +16,11 @@ class User(Base):
     password: Mapped[str] = mapped_column(Text, nullable=False)
     role: Mapped[str] = mapped_column(Text, name="Role", nullable=False)
 
-    audit_logs: Mapped[list[Audit]] = relationship("Audit", back_populates="user")
+    audit_logs: Mapped[list["Audit"]] = relationship("Audit", back_populates="user")
+    refresh_tokens: Mapped[list["RefreshToken"]] = relationship(
+        "RefreshToken", back_populates="user"
+    )
 
 
 from .audit_model import Audit  # noqa: E402
+from .refresh_token_model import RefreshToken  # noqa: E402
