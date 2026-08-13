@@ -4,6 +4,8 @@ from sqlalchemy.orm import Session
 from ..dependencies.database import get_db
 from ..schemas.course import CourseCreate, CourseResponse, CourseUpdate
 from ..services.course import CourseService
+from ..dependencies.auth import get_current_user
+from ..models.user_model import User
 
 router = APIRouter(prefix="/api/v1/courses", tags=["Courses"])
 
@@ -13,7 +15,7 @@ def get_course_service(db: Session = Depends(get_db)) -> CourseService:
 
 
 @router.get("", response_model=list[CourseResponse])
-def get_courses(service: CourseService = Depends(get_course_service)):
+def get_courses(service: CourseService = Depends(get_course_service), current_user: User = Depends(get_current_user)):
     return service.get_all()
 
 

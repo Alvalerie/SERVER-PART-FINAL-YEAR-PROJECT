@@ -4,6 +4,8 @@ from sqlalchemy.orm import Session
 from ..dependencies.database import get_db
 from ..schemas.student_course import StudentCourseCreate, StudentCourseResponse, StudentCourseUpdate
 from ..services.student_course import StudentCourseService
+from ..dependencies.auth import get_current_user, require_admin
+from ..models.user_model import User
 
 router = APIRouter(prefix="/api/v1/enrollments", tags=["Enrollments"])
 
@@ -13,19 +15,19 @@ def get_service(db: Session = Depends(get_db)) -> StudentCourseService:
 
 
 @router.get("", response_model=list[StudentCourseResponse])
-def get_all_enrollments(service: StudentCourseService = Depends(get_service)):
+def get_all_enrollments(service: StudentCourseService = Depends(get_service), current_user: User = Depends(get_current_user)):
     """Return every enrollment record."""
     return service.get_all()
 
 
 @router.get("/student/{student_id}", response_model=list[StudentCourseResponse])
-def get_enrollments_by_student(student_id: str, service: StudentCourseService = Depends(get_service)):
+def get_enrollments_by_student(student_id: str, service: StudentCourseService = Depends(get_service), current_user: User = Depends(get_current_user)):
     """Return all courses a specific student is enrolled in."""
     return service.get_by_student(student_id)
 
 
 @router.get("/course/{course_code}", response_model=list[StudentCourseResponse])
-def get_enrollments_by_course(course_code: str, service: StudentCourseService = Depends(get_service)):
+def get_enrollments_by_course(course_code: str, service: StudentCourseService = Depends(get_service), current_user: User = Depends(get_current_user)):
     """Return all students enrolled in a specific course."""
     return service.get_by_course(course_code)
 
@@ -35,6 +37,7 @@ def get_enrollment(
     student_id: str,
     course_code: str,
     service: StudentCourseService = Depends(get_service),
+    current_user: User = Depends(get_current_user),
 ):
     """Return a single enrollment by composite key."""
     return service.get_by_id(student_id, course_code)
@@ -44,6 +47,7 @@ def get_enrollment(
 def create_enrollment(
     payload: StudentCourseCreate,
     service: StudentCourseService = Depends(get_service),
+    current_user: User = Depends(require_admin),
 ):
     """Enroll a student in a course."""
     return service.create(payload)
@@ -55,6 +59,7 @@ def update_enrollment(
     course_code: str,
     payload: StudentCourseUpdate,
     service: StudentCourseService = Depends(get_service),
+    current_user: User = Depends(require_admin),
 ):
     """Update the current_year of an enrollment."""
     return service.update(student_id, course_code, payload)
@@ -65,6 +70,7 @@ def delete_enrollment(
     student_id: str,
     course_code: str,
     service: StudentCourseService = Depends(get_service),
+    current_user: User = Depends(require_admin),
 ):
     """Remove a student from a course."""
     service.delete(student_id, course_code)
