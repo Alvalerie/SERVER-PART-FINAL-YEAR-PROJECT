@@ -8,6 +8,7 @@ from .routers.student_course import router as student_course_router
 from .routers.handwriting_sample import router as handwriting_sample_router
 from .routers.auth import router as auth_router
 from .routers.marking_session import router as marking_session_router
+from .routers.script_capture import router as script_capture_router
 
 
 
@@ -26,6 +27,8 @@ app.include_router(student_course_router)
 app.include_router(handwriting_sample_router)
 app.include_router(auth_router)
 app.include_router(marking_session_router)
+app.include_router(script_capture_router)
+
 
 @app.get("/", tags=["Health"])
 def health_check():

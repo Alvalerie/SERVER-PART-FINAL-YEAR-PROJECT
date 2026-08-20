@@ -4,7 +4,7 @@ from datetime import datetime
 from decimal import Decimal
 
 from sqlalchemy import (
-    DateTime, ForeignKey, Integer, Numeric, String, Text, func,
+    DateTime, ForeignKey, Integer, Numeric, String, Text, func, Boolean
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -32,6 +32,14 @@ class MarkingSession(Base):
     # constants -- the names came from the lecturer's file.
     comp_no_column: Mapped[str] = mapped_column(String(255), nullable=False)
     mark_column: Mapped[str] = mapped_column(String(255), nullable=False)
+
+    # When true, an exact OCR number match is written without review.
+    # Off by default: a misread printed number that happens to be another
+    # valid roster number writes a mark to the wrong student with nobody
+    # in the loop. The toggle makes that risk a named, deliberate choice.
+    auto_confirm_exact: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default="false"
+    )
 
     created_by: Mapped[int] = mapped_column(
         Integer, ForeignKey("public.USER.id"), nullable=False

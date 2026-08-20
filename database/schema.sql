@@ -4,7 +4,6 @@ BEGIN;
 
 CREATE EXTENSION vector;
 
-
 CREATE TABLE IF NOT EXISTS public."AUDIT"
 (
     id integer NOT NULL GENERATED ALWAYS AS IDENTITY ( INCREMENT 1 START 1 MINVALUE 1 MAXVALUE 2147483647 CACHE 1 ),
@@ -23,13 +22,59 @@ CREATE TABLE IF NOT EXISTS public."COURSES"
     CONSTRAINT "COURSES_code_key" UNIQUE (code)
 );
 
-CREATE TABLE IF NOT EXISTS public."IMAGES"
+CREATE TABLE IF NOT EXISTS public."HANDWRITING_SAMPLES"
 (
     id integer NOT NULL GENERATED ALWAYS AS IDENTITY ( INCREMENT 1 START 1 MINVALUE 1 MAXVALUE 2147483647 CACHE 1 ),
     path text COLLATE pg_catalog."default" NOT NULL,
-    vector vector(10000) NOT NULL,
-    student_id character varying(10) COLLATE pg_catalog."default" NOT NULL,
+    student_no character varying(10) COLLATE pg_catalog."default" NOT NULL,
+    embedding vector(256),
+    created_at timestamp with time zone NOT NULL DEFAULT now(),
+    model_version character varying(50) COLLATE pg_catalog."default",
     CONSTRAINT "IMAGES_pkey" PRIMARY KEY (id)
+);
+
+CREATE TABLE IF NOT EXISTS public."MARKING_SESSIONS"
+(
+    id integer NOT NULL GENERATED ALWAYS AS IDENTITY ( INCREMENT 1 START 1 MINVALUE 1 MAXVALUE 2147483647 CACHE 1 ),
+    label character varying(255) COLLATE pg_catalog."default" NOT NULL,
+    max_mark numeric(6, 2) NOT NULL,
+    csv_filename character varying(255) COLLATE pg_catalog."default",
+    csv_columns text COLLATE pg_catalog."default" NOT NULL,
+    created_by integer NOT NULL,
+    created_at timestamp with time zone NOT NULL DEFAULT now(),
+    exported_at timestamp with time zone,
+    comp_no_column character varying(255) COLLATE pg_catalog."default" NOT NULL DEFAULT ''::character varying,
+    mark_column character varying(255) COLLATE pg_catalog."default" NOT NULL DEFAULT ''::character varying,
+    CONSTRAINT "MARKING_SESSIONS_pkey" PRIMARY KEY (id)
+);
+
+CREATE TABLE IF NOT EXISTS public."REFRESH_TOKENS"
+(
+    id integer NOT NULL GENERATED ALWAYS AS IDENTITY ( INCREMENT 1 START 1 MINVALUE 1 MAXVALUE 2147483647 CACHE 1 ),
+    user_id integer NOT NULL,
+    token text COLLATE pg_catalog."default" NOT NULL,
+    expires_at timestamp with time zone NOT NULL,
+    created_at timestamp with time zone NOT NULL DEFAULT now(),
+    is_revoked boolean NOT NULL DEFAULT false,
+    CONSTRAINT "REFRESH_TOKENS_pkey" PRIMARY KEY (id),
+    CONSTRAINT "REFRESH_TOKENS_token_key" UNIQUE (token)
+);
+
+CREATE TABLE IF NOT EXISTS public."SESSION_ROWS"
+(
+    id integer NOT NULL GENERATED ALWAYS AS IDENTITY ( INCREMENT 1 START 1 MINVALUE 1 MAXVALUE 2147483647 CACHE 1 ),
+    session_id integer NOT NULL,
+    student_no character varying(10) COLLATE pg_catalog."default" NOT NULL,
+    csv_name character varying(255) COLLATE pg_catalog."default",
+    row_order integer NOT NULL,
+    mark numeric(6, 2),
+    match_method character varying(20) COLLATE pg_catalog."default",
+    script_path text COLLATE pg_catalog."default",
+    marked_at timestamp with time zone,
+    marked_by integer,
+    extra jsonb NOT NULL DEFAULT '{}'::jsonb,
+    CONSTRAINT "SESSION_ROWS_pkey" PRIMARY KEY (id),
+    CONSTRAINT "SESSION_ROWS_unique" UNIQUE (session_id, student_no)
 );
 
 CREATE TABLE IF NOT EXISTS public."STUDENTS"
@@ -64,9 +109,41 @@ ALTER TABLE IF EXISTS public."AUDIT"
     ON DELETE NO ACTION;
 
 
-ALTER TABLE IF EXISTS public."IMAGES"
-    ADD CONSTRAINT fk_student_id FOREIGN KEY (student_id)
+ALTER TABLE IF EXISTS public."HANDWRITING_SAMPLES"
+    ADD CONSTRAINT fk_student_id FOREIGN KEY (student_no)
     REFERENCES public."STUDENTS" (student_no) MATCH SIMPLE
+    ON UPDATE NO ACTION
+    ON DELETE NO ACTION;
+CREATE INDEX IF NOT EXISTS idx_samples_student
+    ON public."HANDWRITING_SAMPLES"(student_no);
+
+
+ALTER TABLE IF EXISTS public."MARKING_SESSIONS"
+    ADD CONSTRAINT fk_session_user FOREIGN KEY (created_by)
+    REFERENCES public."USER" (id) MATCH SIMPLE
+    ON UPDATE NO ACTION
+    ON DELETE NO ACTION;
+
+
+ALTER TABLE IF EXISTS public."REFRESH_TOKENS"
+    ADD CONSTRAINT fk_refresh_token_user FOREIGN KEY (user_id)
+    REFERENCES public."USER" (id) MATCH SIMPLE
+    ON UPDATE NO ACTION
+    ON DELETE CASCADE;
+
+
+ALTER TABLE IF EXISTS public."SESSION_ROWS"
+    ADD CONSTRAINT fk_row_session FOREIGN KEY (session_id)
+    REFERENCES public."MARKING_SESSIONS" (id) MATCH SIMPLE
+    ON UPDATE NO ACTION
+    ON DELETE CASCADE;
+CREATE INDEX IF NOT EXISTS idx_rows_session
+    ON public."SESSION_ROWS"(session_id);
+
+
+ALTER TABLE IF EXISTS public."SESSION_ROWS"
+    ADD CONSTRAINT fk_row_user FOREIGN KEY (marked_by)
+    REFERENCES public."USER" (id) MATCH SIMPLE
     ON UPDATE NO ACTION
     ON DELETE NO ACTION;
 
@@ -83,20 +160,5 @@ ALTER TABLE IF EXISTS public."STUDENT_COURSE"
     REFERENCES public."STUDENTS" (student_no) MATCH SIMPLE
     ON UPDATE NO ACTION
     ON DELETE NO ACTION;
-
-CREATE TABLE IF NOT EXISTS public."REFRESH_TOKENS"
-(
-    id integer NOT NULL GENERATED ALWAYS AS IDENTITY,
-    user_id integer NOT NULL,
-    token text NOT NULL,
-    expires_at timestamp with time zone NOT NULL,
-    created_at timestamp with time zone NOT NULL DEFAULT now(),
-    is_revoked boolean NOT NULL DEFAULT false,
-    CONSTRAINT "REFRESH_TOKENS_pkey" PRIMARY KEY (id),
-    CONSTRAINT "REFRESH_TOKENS_token_key" UNIQUE (token),
-    CONSTRAINT "fk_refresh_token_user" FOREIGN KEY (user_id)
-        REFERENCES public."USER" (id)
-        ON DELETE CASCADE
-);
 
 END;

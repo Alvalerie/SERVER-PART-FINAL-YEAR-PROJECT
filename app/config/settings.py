@@ -51,6 +51,10 @@ class Settings(BaseSettings):
     # A student below this is not considered enrolled.
     MIN_SAMPLES_PER_STUDENT: int = 10
 
+    # Mark OCR confidence required before auto_confirm_exact will write a
+    # mark unseen. High, because this is the unreviewed path.
+    OCR_MARK_AUTOCONFIRM_CONF: float = 0.90
+
     # Embeddings from different checkpoints are not comparable.
     MODEL_VERSION: str = "siamese-resnet18-v1"
 
