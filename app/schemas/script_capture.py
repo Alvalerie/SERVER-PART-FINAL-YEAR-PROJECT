@@ -1,94 +1,57 @@
 """
 app/schemas/script_capture.py
 
-Request/response shapes for the capture flow.
-
-Everything here is a PROPOSAL. A capture never asserts who a script
-belongs to; it offers candidates and a suggested mark, and the lecturer
-confirms via set_mark. The one exception is auto_confirm_exact.
+Shapes for processing one captured script. The server stores no images
+and no capture rows -- it returns a verdict, and the phone keeps
+whatever needs review.
 """
 
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, Field
 
-# Where a student suggestion came from -- also the evidence for how often
-# each path actually worked, which is a result worth reporting.
 SuggestionSource = Literal["ocr_exact", "ocr_fuzzy", "handwriting"]
 
-# The capture's resolution state after number matching.
-CaptureStatus = Literal["matched", "fuzzy", "not_in_csv", "confirmed"]
+# written    -> mark was auto-written to the session row, nothing to do
+# review     -> needs the lecturer; phone keeps the images and shows them
+Verdict = Literal["written", "review"]
+
+# Why a script went to review, so the phone can render the right screen.
+ReviewReason = Literal["fuzzy", "not_in_csv", "low_mark", "auto_off"]
 
 
 class StudentSuggestion(BaseModel):
     student_no: str
     source: SuggestionSource
-
-    # 1.0 for an exact match. For fuzzy, the RapidFuzz ratio /100. For
-    # handwriting, 1 - cosine distance. NOT comparable across sources and
-    # NOT a probability -- the UI must not render it as a confidence %.
+    # 1.0 exact; fuzzy ratio/100; 1 - cosine distance for handwriting.
+    # Not comparable across sources, not a probability. Rank, don't %.
     score: float
 
 
 class MarkProposal(BaseModel):
-    # None means the mark crop read nothing usable. The lecturer types it.
     value: float | None = None
     confidence: float = 0.0
-
-    # Every plausible mark the crop yielded, best first. More than one
-    # means the lecturer picks; the system does not guess.
     candidates: list[float] = Field(default_factory=list)
 
 
-class CaptureProposal(BaseModel):
-    """
-    Returned right after the three crops are uploaded.
+class ProcessResult(BaseModel):
+    """One processed script.
 
-    status tells the app what to render:
-      matched     -> one exact student, confirm the (pre-filled) mark
-      fuzzy       -> ranked OCR near-matches, lecturer picks
-      not_in_csv  -> number failed; handwriting suggestions instead
-      confirmed   -> auto_confirm_exact fired; mark already written
+    client_id echoes the phone's own id for the capture, so the phone
+    can match this verdict to the queued item and mark it done or move
+    it to review.
     """
 
-    capture_id: int
-    status: CaptureStatus
+    client_id: str
+    verdict: Verdict
 
-    ocr_number: str | None = None
-    number_confidence: float = 0.0
+    # Present when verdict == written.
+    student_no: str | None = None
+    mark: float | None = None
 
+    # Present when verdict == review.
+    reason: ReviewReason | None = None
     suggestions: list[StudentSuggestion] = Field(default_factory=list)
-    mark: MarkProposal
-
-    # True only when the session toggle is on AND the number matched
-    # exactly AND the mark read cleared its confidence bar. Almost always
-    # false, by design.
-    auto_confirmed: bool = False
-
-
-class CaptureOut(BaseModel):
-    """A stored capture, for the review list and single-capture reads."""
-
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int
-    session_id: int
-
-    number_path: str
-    mark_path: str
-    handwriting_path: str
-
-    ocr_number: str | None = None
-    ocr_number_conf: float | None = None
-    ocr_mark: str | None = None
-    ocr_mark_conf: float | None = None
-
-    resolved_student_no: str | None = None
-    match_method: str | None = None
-    status: str
-
-    captured_by: int
-    captured_at: datetime
+    mark_proposal: MarkProposal | None = None

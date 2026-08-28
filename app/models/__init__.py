@@ -5,5 +5,4 @@ from .course_model import Course
 from .student_course_model import StudentCourse
 from .handwriting_sample_model import HandwritingSample
 from .marking_session_model import MarkingSession, SessionRow
-from .script_capture_model import ScriptCapture
 #note that we added these to prevent the circular import error. We can import the models here and then import this file in the repositories and services without any issues.

@@ -60,6 +60,7 @@ class AuthService:
         return TokenResponse(
             access_token=access_token,
             refresh_token=refresh_token_str,
+            role=user.role
         )
 
     def refresh(self, payload: RefreshRequest) -> AccessTokenResponse:
