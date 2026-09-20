@@ -10,6 +10,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, File, Form, UploadFile, status
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 
 from ..dependencies.auth import get_current_user, require_admin
 from ..dependencies.database import get_db
@@ -120,37 +121,51 @@ def list_student_samples(
 # Identification
 # ---------------------------------------------------------------------
 
+import json
+
+
 @router.post("/handwriting/identify", response_model=WriterSuggestions)
 async def identify_writer(
-    file: UploadFile = File(...),
-    candidates: str | None = Form(
-        None,
-        description="Comma-separated student numbers to search within, "
-                    "normally the current marking session's roster. "
-                    "Omit to search every enrolled student.",
+    file: UploadFile = File(..., description="The handwriting crop to identify"),
+    candidates: str = Form(
+        ...,
+        description='JSON array of unmarked computer numbers to search '
+                    'within, e.g. ["2022024567","2021015533"]. This is the '
+                    'candidate pool; the server does not hold the CSV.',
     ),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> WriterSuggestions:
     """
-    Rank likely writers for an anonymous handwriting crop.
+    Rank likely writers for a handwriting crop, within a candidate pool.
 
-    Returns SUGGESTIONS ONLY. The lecturer confirms; nothing here
-    assigns a script to a student.
+    Returns SUGGESTIONS ONLY. The lecturer confirms; nothing here assigns
+    a script to a student.
 
-    Always pass `candidates` in real use. Narrowing the search from every
-    enrolled student to the ~40 on one roster is the largest accuracy
-    gain available, and it costs nothing at the model level.
+    `candidates` is the phone's list of still-unmarked computer numbers —
+    the only students a not-in-CSV script could plausibly belong to.
     """
-    candidate_list = (
-        [c.strip() for c in candidates.split(",") if c.strip()]
-        if candidates
-        else None
-    )
+    try:
+        candidate_list = json.loads(candidates)
+    except json.JSONDecodeError:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"code": "BAD_CANDIDATES",
+                    "message": "candidates must be a JSON array of numbers."},
+        )
+
+    if not isinstance(candidate_list, list) or not candidate_list:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"code": "BAD_CANDIDATES",
+                    "message": "candidates must be a non-empty JSON array."},
+        )
+
+    # Numbers may arrive as ints from JSON; the DB column is a string.
+    candidate_list = [str(c).strip() for c in candidate_list if str(c).strip()]
 
     service = HandwritingSampleService(db)
     return await service.identify_writer(file, candidate_student_nos=candidate_list)
-
 
 # ---------------------------------------------------------------------
 # Sample reads & delete

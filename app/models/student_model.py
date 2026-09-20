@@ -11,7 +11,6 @@ class Student(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
 
     images: Mapped[list["HandwritingSample"]] = relationship("HandwritingSample", back_populates="student")
-    course_enrollments: Mapped[list["StudentCourse"]] = relationship("StudentCourse", back_populates="student")
 
     handwriting_samples: Mapped[list["HandwritingSample"]] = relationship(
         "HandwritingSample", back_populates="student"
