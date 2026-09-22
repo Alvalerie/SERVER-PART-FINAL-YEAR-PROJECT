@@ -28,6 +28,7 @@ from ..repositories.handwriting_sample import HandwritingSampleRepository
 from ..schemas.handwriting_sample import (
     QualityConfigOut,
     SampleOut,
+    EnrolledSampleOut,
     WriterCandidate,
     WriterSuggestions,
     BulkEnrolResult,
@@ -153,7 +154,7 @@ class HandwritingSampleService:
             raise
 
         count = self.repo.count_by_student(student_no)
-        return SampleOut(
+        return EnrolledSampleOut(
             id=sample.id,
             student_no=sample.student_no,
             path=sample.path,
