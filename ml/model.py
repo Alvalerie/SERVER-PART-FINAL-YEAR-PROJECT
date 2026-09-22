@@ -4,7 +4,7 @@ from torchvision import models
 from PIL import Image
 from pathlib import Path
 
-from ml.transforms import transform
+from ml.transforms import get_eval_crops, tensorize_crop
 from app.config.settings import settings
 
 
@@ -22,17 +22,15 @@ class EmbeddingNetwork(nn.Module):
             param.requires_grad = True
 
         self.embedding_head = nn.Sequential(
-            nn.Linear(512, 256),
-            nn.BatchNorm1d(256),
-            nn.ReLU(),
-            nn.Dropout(p=0.3),
+            nn.Linear(512, embedding_dim),
+            nn.BatchNorm1d(embedding_dim),
         )
 
     def forward(self, x):
         x = self.backbone(x)
         x = x.view(x.size(0), -1)
         x = self.embedding_head(x)
-        return x
+        return nn.functional.normalize(x, p=2, dim=1)
 
 
 class SiameseNetwork(nn.Module):
@@ -51,9 +49,6 @@ class SiameseNetwork(nn.Module):
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Loaded on first use, not at import. A missing or broken checkpoint
-# then disables handwriting only, rather than stopping the whole API --
-# the CSV trunk does not depend on the model.
 _model: SiameseNetwork | None = None
 
 
@@ -72,14 +67,14 @@ def _get_model() -> SiameseNetwork:
 
 
 def get_embedding_from_image(image: Image.Image) -> list:
-    """Embed a PIL image already loaded in memory (enrolment upload,
-    identification crop)."""
     model = _get_model()
-    tensor = transform(image).unsqueeze(0).to(device)
+    crops = get_eval_crops(image)
+    batch = torch.stack([tensorize_crop(c) for c in crops]).to(device)
     with torch.no_grad():
-        return model.get_embedding(tensor).cpu().numpy().tolist()[0]
+        embs = model.get_embedding(batch)
+        vec = nn.functional.normalize(embs.mean(0, keepdim=True), p=2, dim=1)
+    return vec.squeeze(0).cpu().numpy().tolist()
 
 
 def get_embedding_from_path(image_path: str) -> list:
-    """Embed an image on disk. Used by scripts/bulk_enroll.py."""
     return get_embedding_from_image(Image.open(image_path).convert("RGB"))

@@ -157,6 +157,7 @@ class HandwritingSampleService:
             id=sample.id,
             student_no=sample.student_no,
             path=sample.path,
+            created_at=sample.created_at,
             sample_count=count,
             is_enrolled=count >= settings.MIN_SAMPLES_PER_STUDENT,
             quality_metrics=result.metrics,
