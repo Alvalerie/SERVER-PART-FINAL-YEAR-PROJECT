@@ -6,6 +6,7 @@ business rules -- everything is delegated to HandwritingSampleService.
 """
 
 from __future__ import annotations
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, UploadFile, status
 from fastapi.responses import FileResponse
@@ -19,6 +20,7 @@ from ..schemas.handwriting_sample import (
     BulkEnrolResult,
     QualityConfigOut,
     SampleOut,
+    EnrolledSampleOut,
     WriterSuggestions,
 )
 from ..services.handwriting_sample import HandwritingSampleService, quality_config
@@ -89,24 +91,46 @@ def get_quality_config(
 )
 async def enrol_samples(
     student_no: str,
-    files: list[UploadFile] = File(...),
+    files: Annotated[list[UploadFile], File(description="Handwriting sample images")],
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ) -> BulkEnrolResult:
     """
-    Upload one or more handwriting samples for a student.
+    Batch upload for the mobile app: many samples in one request.
 
-    Partial success is the normal case, not an error: a student submits
-    fourteen photos and two are blurry. Failing the whole request would
-    force them to re-upload the twelve good ones, so each file is
-    reported separately and the accepted ones are kept.
+    Partial success is normal, not an error. Each file is reported
+    separately in `accepted` / `rejected`; a 422 is only for a request
+    that is unusable as a whole.
 
-    Individual rejections appear in `rejected`, not as a 422. A 422 is
-    returned only if the request itself is unusable.
+    Note: Swagger UI cannot render a picker for an array of files. Test
+    this route with curl or the app; use the single-file route below to
+    test through Swagger.
     """
     service = HandwritingSampleService(db)
     return await service.add_samples(student_no, files)
 
+
+@router.post(
+    "/students/{student_no}/samples/one",
+    response_model=EnrolledSampleOut,
+    status_code=status.HTTP_201_CREATED,
+    responses=QUALITY_REJECTION,
+)
+async def enrol_one_sample(
+    student_no: str,
+    file: Annotated[UploadFile, File(description="One handwriting sample image")],
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+) -> EnrolledSampleOut:
+    """
+    Upload a single handwriting sample. Swagger-testable, and useful for
+    retrying one image without re-sending a whole batch.
+
+    Raises 422 with `{code, message}` if this image fails the quality
+    gate -- unlike the batch route, where a rejection is a list entry.
+    """
+    service = HandwritingSampleService(db)
+    return await service.add_sample(student_no, file)
 
 @router.get("/students/{student_no}/samples", response_model=list[SampleOut])
 def list_student_samples(
