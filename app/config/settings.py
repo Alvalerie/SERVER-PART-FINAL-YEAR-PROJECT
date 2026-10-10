@@ -56,7 +56,7 @@ class Settings(BaseSettings):
     OCR_MARK_AUTOCONFIRM_CONF: float = 0.90
 
     # Embeddings from different checkpoints are not comparable.
-    MODEL_VERSION: str = "siamese-resnet18-v1"
+    MODEL_VERSION: str = "siamese-resnet18-student-deep-v1"
 
 
 settings = Settings()
