@@ -13,5 +13,7 @@ class Student(Base):
     images: Mapped[list["HandwritingSample"]] = relationship("HandwritingSample", back_populates="student")
 
     handwriting_samples: Mapped[list["HandwritingSample"]] = relationship(
-        "HandwritingSample", back_populates="student"
+        "HandwritingSample", back_populates="student", overlaps="images"
     )
+
+    
