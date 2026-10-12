@@ -65,11 +65,12 @@ project/
 
 1. In windows terminal
    * `python -m venv venv` 
-   * `venv\Sripts\activate`
-   * `pip install -r requirements.txt`
-   * `uvicorn app.main:app --reload`
+   * `venv\Scripts\activate`
+   * `python -m pip install -r requirements.txt`
+   * `python -m uvicorn app.main:app --reload`
+   * Use `python -m` so pip/uvicorn come from the venv, not a global Python install
 2. To run with the mobile app
-   * `uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload`
+   * `python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload`
 
 3. or with Docker
    * `docker compose up --build`
