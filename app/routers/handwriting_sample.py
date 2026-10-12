@@ -178,7 +178,7 @@ async def identify_writer(
                     "message": "candidates must be a JSON array of numbers."},
         )
 
-    if not isinstance(candidate_list, list) or not candidate_list:
+    if not isinstance(candidate_list, list):
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail={"code": "BAD_CANDIDATES",
@@ -187,6 +187,16 @@ async def identify_writer(
 
     # Numbers may arrive as ints from JSON; the DB column is a string.
     candidate_list = [str(c).strip() for c in candidate_list if str(c).strip()]
+
+    # Checked after stripping: [""] would otherwise reach the repository
+    # as an empty list, which it treats as "no filter" and searches every
+    # enrolled student.
+    if not candidate_list:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"code": "BAD_CANDIDATES",
+                    "message": "candidates must be a non-empty JSON array."},
+        )
 
     service = HandwritingSampleService(db)
     return await service.identify_writer(file, candidate_student_nos=candidate_list)
