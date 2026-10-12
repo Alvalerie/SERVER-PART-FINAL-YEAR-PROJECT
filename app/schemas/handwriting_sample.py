@@ -128,7 +128,8 @@ class WriterCandidate(BaseModel):
     # what makes the confirm step a real check rather than a rubber stamp.
     sample_id: int
 
-    # Cosine distance. Lower is closer. Range is [0, 2] for unit-length
+    # Cosine distance to the student's centroid (mean of their sample
+    # embeddings), which is what ranks them. Lower is closer. Range is [0, 2] for unit-length
     # embeddings, so no upper bound of 1 here.
     distance: float = Field(ge=0.0)
 

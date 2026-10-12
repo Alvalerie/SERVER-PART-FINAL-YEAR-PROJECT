@@ -12,7 +12,9 @@ class EmbeddingNetwork(nn.Module):
     def __init__(self, embedding_dim=256):
         super(EmbeddingNetwork, self).__init__()
 
-        resnet = models.resnet18(weights='IMAGENET1K_V1')
+        # No pretrained download: every weight is overwritten by the
+        # checkpoint in _get_model, and a server may have no internet.
+        resnet = models.resnet18(weights=None)
         self.backbone = nn.Sequential(*list(resnet.children())[:-1])
 
         for param in self.backbone.parameters():

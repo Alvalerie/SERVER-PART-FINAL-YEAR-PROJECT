@@ -12,6 +12,7 @@ __pycache__/
 # environment / secrets
 .env
 *.env
+*.env_local
 
 # paddle model cache
 .paddlex/

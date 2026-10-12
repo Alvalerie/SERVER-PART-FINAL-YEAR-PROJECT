@@ -7,7 +7,8 @@ HTTPException -- queries and mutations only.
 
 from __future__ import annotations
 
-from sqlalchemy import func
+from pgvector.sqlalchemy import Vector
+from sqlalchemy import func, type_coerce
 from sqlalchemy.orm import Session
 
 from ..models.handwriting_sample_model import HandwritingSample
@@ -92,46 +93,71 @@ class HandwritingSampleRepository:
         candidate_student_nos: list[str] | None = None,
     ):
         """
-        Rank STUDENTS -- not samples -- by their closest sample.
+        Rank STUDENTS -- not samples -- by their centroid (prototype).
 
-        The DISTINCT ON is the important part. Without it, a student with
-        fourteen enrolled samples can fill all five result slots, and the
-        lecturer is shown one name five times instead of five names.
-        Postgres requires DISTINCT ON columns to lead the ORDER BY, so
-        the per-student best is picked in a subquery and the overall
-        ranking happens outside it.
+        This is the identification rule the model was trained and
+        evaluated with (prototype_rank1 / identify_owner in the training
+        notebook): each student is represented by the mean of their
+        sample embeddings, and the query is ranked by cosine distance to
+        each mean. Averaging smooths out one unusual sample, which a
+        nearest-single-sample rule would let dominate. Cosine distance
+        ignores length, so the AVG does not need re-normalising.
+
+        sample_id is still the student's single closest sample, so the
+        lecturer is shown the most similar real handwriting to compare.
+        Grouping by student also means one student with fourteen samples
+        cannot fill all five result slots.
 
         Filtering on model_version is not optional: after a retrain, old
         and new embeddings coexist in the table and comparing across them
         returns confident nonsense with no error raised.
         """
-        distance = HandwritingSample.embedding.cosine_distance(embedding)
+        def scoped(query):
+            query = (
+                query
+                .filter(HandwritingSample.embedding.isnot(None))
+                .filter(HandwritingSample.model_version == model_version)
+            )
+            if candidate_student_nos:
+                query = query.filter(
+                    HandwritingSample.student_no.in_(candidate_student_nos)
+                )
+            return query
 
-        best_per_student = (
+        centroids = scoped(
             self.db.query(
                 HandwritingSample.student_no.label("student_no"),
-                HandwritingSample.id.label("sample_id"),
-                distance.label("distance"),
+                # type_coerce so the AVG result keeps pgvector's
+                # cosine_distance operator.
+                type_coerce(func.avg(HandwritingSample.embedding), Vector())
+                .cosine_distance(embedding)
+                .label("distance"),
             )
-            .filter(HandwritingSample.embedding.isnot(None))
-            .filter(HandwritingSample.model_version == model_version)
-        )
+        ).group_by(HandwritingSample.student_no).subquery()
 
-        if candidate_student_nos:
-            best_per_student = best_per_student.filter(
-                HandwritingSample.student_no.in_(candidate_student_nos)
+        # Postgres requires DISTINCT ON columns to lead the ORDER BY, so
+        # the per-student closest sample is picked in its own subquery.
+        sample_distance = HandwritingSample.embedding.cosine_distance(embedding)
+        closest_sample = (
+            scoped(
+                self.db.query(
+                    HandwritingSample.student_no.label("student_no"),
+                    HandwritingSample.id.label("sample_id"),
+                )
             )
-
-        best_per_student = (
-            best_per_student
             .distinct(HandwritingSample.student_no)          # DISTINCT ON
-            .order_by(HandwritingSample.student_no, distance)
+            .order_by(HandwritingSample.student_no, sample_distance)
             .subquery()
         )
 
         return (
-            self.db.query(best_per_student)
-            .order_by(best_per_student.c.distance)
+            self.db.query(
+                centroids.c.student_no,
+                closest_sample.c.sample_id,
+                centroids.c.distance,
+            )
+            .join(closest_sample, closest_sample.c.student_no == centroids.c.student_no)
+            .order_by(centroids.c.distance)
             .limit(limit)
             .all()
         )

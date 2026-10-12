@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
+from app.dependencies.auth import get_current_user
 from app.dependencies.database import get_db
 from app.main import app
 from app.models.user_model import User
@@ -18,6 +19,8 @@ def override_get_db():
 
 
 app.dependency_overrides[get_db] = override_get_db
+# Routes now require a Bearer token; act as a logged-in admin.
+app.dependency_overrides[get_current_user] = lambda: MOCK_USER
 
 
 # GET /api/v1/users
