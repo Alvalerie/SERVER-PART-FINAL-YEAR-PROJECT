@@ -88,7 +88,6 @@ class HandwritingSampleRepository:
     def search_similar(
         self,
         embedding: list[float],
-        limit: int,
         model_version: str,
         candidate_student_nos: list[str] | None = None,
     ):
@@ -158,7 +157,6 @@ class HandwritingSampleRepository:
             )
             .join(closest_sample, closest_sample.c.student_no == centroids.c.student_no)
             .order_by(centroids.c.distance)
-            .limit(limit)
             .all()
         )
 

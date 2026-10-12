@@ -41,7 +41,7 @@ from ml.model import get_embedding_from_image
 
 logger = logging.getLogger(__name__)
 
-TOP_N = 5
+
 
 ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
 
@@ -249,7 +249,6 @@ class HandwritingSampleService:
 
         rows = self.repo.search_similar(
             embedding=embedding,
-            limit=TOP_N,
             model_version=settings.MODEL_VERSION,
             candidate_student_nos=candidate_student_nos,
         )
