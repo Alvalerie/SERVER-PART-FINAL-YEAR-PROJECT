@@ -68,8 +68,10 @@ project/
    * `venv\Sripts\activate`
    * `pip install -r requirements.txt`
    * `uvicorn app.main:app --reload`
+2. To run with the mobile app
+   * `uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload`
 
-2. or with Docker
+3. or with Docker
    * `docker compose up --build`
 
 ## to run the tests
