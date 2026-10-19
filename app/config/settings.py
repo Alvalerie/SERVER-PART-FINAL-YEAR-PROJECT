@@ -55,8 +55,13 @@ class Settings(BaseSettings):
     # mark unseen. High, because this is the unreviewed path.
     OCR_MARK_AUTOCONFIRM_CONF: float = 0.90
 
+    # Largest candidate pool /handwriting/identify accepts. Results are
+    # uncapped, which is fine for a class but must not become an
+    # unbounded query.
+    IDENTIFY_MAX_POOL: int = 1000
+
     # Embeddings from different checkpoints are not comparable.
-    MODEL_VERSION: str = "siamese-resnet18-student-deep-v1"
+    MODEL_VERSION: str = "siamese-resnet18-student-deep-v2"
 
 
 settings = Settings()

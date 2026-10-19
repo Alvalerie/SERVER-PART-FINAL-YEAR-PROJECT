@@ -13,6 +13,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 
+from ..config.settings import settings
 from ..dependencies.auth import get_current_user, require_admin
 from ..dependencies.database import get_db
 from ..models.user_model import User
@@ -23,6 +24,7 @@ from ..schemas.handwriting_sample import (
     EnrolledSampleOut,
     WriterSuggestions,
 )
+from ..services.audit import record_action
 from ..services.handwriting_sample import HandwritingSampleService, quality_config
 
 router = APIRouter(prefix="/api/v1", tags=["handwriting"])
@@ -107,7 +109,13 @@ async def enrol_samples(
     test through Swagger.
     """
     service = HandwritingSampleService(db)
-    return await service.add_samples(student_no, files)
+    result = await service.add_samples(student_no, files)
+    record_action(
+        db, current_user,
+        f"Enrolled {len(result.accepted)} handwriting sample(s) for student "
+        f"{student_no} ({len(result.rejected)} rejected)",
+    )
+    return result
 
 
 @router.post(
@@ -130,7 +138,9 @@ async def enrol_one_sample(
     gate -- unlike the batch route, where a rejection is a list entry.
     """
     service = HandwritingSampleService(db)
-    return await service.add_sample(student_no, file)
+    sample = await service.add_sample(student_no, file)
+    record_action(db, current_user, f"Enrolled handwriting sample {sample.id} for student {student_no}")
+    return sample
 
 @router.get("/students/{student_no}/samples", response_model=list[SampleOut])
 def list_student_samples(
@@ -138,7 +148,9 @@ def list_student_samples(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[SampleOut]:
-    return HandwritingSampleService(db).get_by_student(student_no)
+    samples = HandwritingSampleService(db).get_by_student(student_no)
+    record_action(db, current_user, f"Viewed handwriting samples of student {student_no}")
+    return samples
 
 
 # ---------------------------------------------------------------------
@@ -186,7 +198,10 @@ async def identify_writer(
         )
 
     # Numbers may arrive as ints from JSON; the DB column is a string.
-    candidate_list = [str(c).strip() for c in candidate_list if str(c).strip()]
+    # dict.fromkeys drops duplicates while keeping the original order.
+    candidate_list = list(dict.fromkeys(
+        str(c).strip() for c in candidate_list if str(c).strip()
+    ))
 
     # Checked after stripping: [""] would otherwise reach the repository
     # as an empty list, which it treats as "no filter" and searches every
@@ -198,8 +213,23 @@ async def identify_writer(
                     "message": "candidates must be a non-empty JSON array."},
         )
 
+    if len(candidate_list) > settings.IDENTIFY_MAX_POOL:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"code": "BAD_CANDIDATES",
+                    "message": f"candidates may hold at most "
+                               f"{settings.IDENTIFY_MAX_POOL} numbers."},
+        )
+
     service = HandwritingSampleService(db)
-    return await service.identify_writer(file, candidate_student_nos=candidate_list)
+    suggestions = await service.identify_writer(file, candidate_student_nos=candidate_list)
+    top = ", ".join(c.student_no for c in suggestions.candidates[:3]) or "none"
+    record_action(
+        db, current_user,
+        f"Ran writer identification over {len(candidate_list)} candidate(s); "
+        f"top suggestions: {top}",
+    )
+    return suggestions
 
 # ---------------------------------------------------------------------
 # Sample reads & delete
@@ -210,7 +240,9 @@ def list_all_samples(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[SampleOut]:
-    return HandwritingSampleService(db).get_all()
+    samples = HandwritingSampleService(db).get_all()
+    record_action(db, current_user, "Viewed all handwriting samples")
+    return samples
 
 
 @router.get("/handwriting-samples/{sample_id}", response_model=SampleOut)
@@ -219,7 +251,9 @@ def get_sample(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> SampleOut:
-    return HandwritingSampleService(db).get_by_id(sample_id)
+    sample = HandwritingSampleService(db).get_by_id(sample_id)
+    record_action(db, current_user, f"Viewed handwriting sample {sample_id}")
+    return sample
 
 
 @router.get("/handwriting-samples/{sample_id}/file")
@@ -235,7 +269,10 @@ def get_sample_file(
     """
     service = HandwritingSampleService(db)
     sample = service.get_by_id(sample_id)
-    return FileResponse(service.file_path(sample), media_type="image/jpeg")
+    path = service.file_path(sample)
+    record_action(db, current_user, f"Viewed image of handwriting sample {sample_id} "
+                                    f"(student {sample.student_no})")
+    return FileResponse(path, media_type="image/jpeg")
 
 
 @router.delete("/handwriting-samples/{sample_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -245,3 +282,4 @@ def delete_sample(
     current_user: User = Depends(require_admin),
 ) -> None:
     HandwritingSampleService(db).delete(sample_id)
+    record_action(db, current_user, f"Deleted handwriting sample {sample_id}")

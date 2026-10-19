@@ -12,6 +12,7 @@ from ..schemas.auth import (
     RefreshRequest,
     TokenResponse,
 )
+from ..services.audit import record_action
 from ..services.auth import AuthService
 
 router = APIRouter(prefix="/api/v1/auth", tags=["Auth"])
@@ -64,4 +65,6 @@ def logout_all(
     Revoke ALL refresh tokens for the authenticated user.
     Logs out every device simultaneously. Requires a valid access token.
     """
-    return service.logout_all(current_user.id)
+    result = service.logout_all(current_user.id)
+    record_action(service.db, current_user, "Logged out from all devices")
+    return result

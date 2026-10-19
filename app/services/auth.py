@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from ..models.user_model import User
 from ..repositories.refresh_token import RefreshTokenRepository
+from .audit import record_action
 from ..schemas.auth import (
     AccessTokenResponse,
     LoginRequest,
@@ -41,6 +42,9 @@ class AuthService:
         user = self._get_user_by_email(payload.email)
 
         if not user or not verify_password(payload.password, user.password):
+            # Only attempts on a real account can be tied to a user.
+            if user:
+                record_action(self.db, user, "Failed login (wrong password)")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid email or password",
@@ -56,6 +60,8 @@ class AuthService:
             token=refresh_token_str,
             expires_at=expires_at,
         )
+
+        record_action(self.db, user, "Logged in")
 
         return TokenResponse(
             access_token=access_token,
@@ -89,6 +95,10 @@ class AuthService:
         if stored.is_revoked:
             # Possible token reuse attack — revoke ALL tokens for this user
             self.token_repo.revoke_all_for_user(stored.user_id)
+            reused_by = self._get_user_by_id(stored.user_id)
+            if reused_by:
+                record_action(self.db, reused_by,
+                              "Revoked refresh token reused; all sessions revoked")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Refresh token has already been used. All sessions have been revoked.",
@@ -132,6 +142,9 @@ class AuthService:
             return MessageResponse(message="Logged out successfully")
 
         self.token_repo.revoke(stored)
+        user = self._get_user_by_id(stored.user_id)
+        if user:
+            record_action(self.db, user, "Logged out")
         return MessageResponse(message="Logged out successfully")
 
     def logout_all(self, user_id: int) -> MessageResponse:

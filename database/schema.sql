@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS public."AUDIT"
     id integer NOT NULL GENERATED ALWAYS AS IDENTITY ( INCREMENT 1 START 1 MINVALUE 1 MAXVALUE 2147483647 CACHE 1 ),
     user_id integer,
     action text COLLATE pg_catalog."default",
-    time_stamp date,
+    time_stamp timestamp with time zone NOT NULL DEFAULT now(),
     CONSTRAINT "AUDIT_pkey" PRIMARY KEY (id)
 );
 
@@ -57,7 +57,7 @@ ALTER TABLE IF EXISTS public."AUDIT"
     ADD CONSTRAINT forein_key_user_id FOREIGN KEY (user_id)
     REFERENCES public."USER" (id) MATCH SIMPLE
     ON UPDATE NO ACTION
-    ON DELETE NO ACTION;
+    ON DELETE SET NULL;
 
 
 ALTER TABLE IF EXISTS public."HANDWRITING_SAMPLES"

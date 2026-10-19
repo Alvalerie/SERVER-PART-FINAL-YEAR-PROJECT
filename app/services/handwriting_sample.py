@@ -253,11 +253,17 @@ class HandwritingSampleService:
             candidate_student_nos=candidate_student_nos,
         )
 
-        if not rows:
+        # With a pool, an empty result is still a 200: the app lists
+        # `unranked_student_nos` so the lecturer sees who must enrol.
+        # Only the search-everyone testing mode keeps the 404.
+        if not rows and not candidate_student_nos:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="No enrolled handwriting samples to compare against.",
             )
+
+        ranked = {row.student_no for row in rows}
+        unranked = sorted(set(candidate_student_nos or []) - ranked)
 
         candidates = [
             WriterCandidate(
@@ -277,6 +283,7 @@ class HandwritingSampleService:
             candidates=candidates,
             searched_pool_size=len(candidate_student_nos)
             if candidate_student_nos else None,
+            unranked_student_nos=unranked,
             quality_warning=None if result.accepted else result.message,
         )
 

@@ -147,6 +147,10 @@ class WriterSuggestions(BaseModel):
     # the size of the marking session's roster.
     searched_pool_size: int | None = None
 
+    # Candidates from the pool with no usable samples for the current
+    # model version. They could not be ranked and are not in `candidates`.
+    unranked_student_nos: list[str] = []
+
     # Set when the crop passed but scored poorly. The lecturer is told
     # the suggestions may be unreliable rather than being refused: a
     # script cannot be recaptured the way an enrolment photo can.

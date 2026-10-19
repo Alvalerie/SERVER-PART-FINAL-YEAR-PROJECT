@@ -5,6 +5,7 @@ from .routers.user import router as user_router
 from .routers.student import router as student_router
 from .routers.handwriting_sample import router as handwriting_sample_router
 from .routers.auth import router as auth_router
+from .routers.audit import router as audit_router
 
 
 
@@ -21,6 +22,7 @@ app.include_router(user_router)
 app.include_router(student_router)
 app.include_router(handwriting_sample_router)
 app.include_router(auth_router)
+app.include_router(audit_router)
 
 
 
